@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MEOW SPLIT</title>
+<link rel="stylesheet" href="css/meow-terminal.css">
+<style>
+  html, body { height: 100%; }
+  body { padding: var(--space-8); }
+  .app { height: 100%; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 var(--space-12) var(--space-16); scrollbar-width: thin; }
+  .panel-body { flex-direction: column; }
+</style>
+</head>
+<body>
+<section class="pane panel-pane app">
+  <header class="panel-head">
+    <nav class="panel-tabs"><button class="selected">SETTINGS</button></nav>
+    <div class="panel-controls">
+      <button class="btn" id="open">&gt;&gt;SPLIT A FILE</button>
+    </div>
+  </header>
+  <div class="panel-body">
+    <div class="scroll">
+      <section class="section">
+        <h3>// USE</h3>
+        <div class="empty"><div id="status">&gt; RIGHT-CLICK A WAV IN FINDER &gt; OPEN WITH &gt; MEOW SPLIT<span class="cursor">_</span></div></div>
+        <p class="note">A FOLDER NAMED AFTER THE FILE APPEARS BESIDE IT, HOLDING ONE STEREO WAV PER CHANNEL PAIR (1-2, 3-4, ...). BIT DEPTH AND SAMPLE RATE ARE KEPT. YOU CAN ALSO DROP WAV FILES ON THIS WINDOW OR THE DOCK ICON.</p>
+      </section>
+
+      <section class="section">
+        <h3>// OUTPUT</h3>
+        <div class="field"><span>ODD LAST CHANNEL</span>
+          <div class="choice" role="radiogroup" aria-label="Odd last channel" id="odd">
+            <button role="radio" data-v="mono">MONO</button><button role="radio" data-v="dual">DUAL MONO</button><button role="radio" data-v="skip">SKIP</button>
+          </div>
+        </div>
+        <button class="toggle" role="switch" id="reveal"><span class="toggle-box">[ ]</span> SHOW FOLDER IN FINDER WHEN DONE</button>
+      </section>
+
+      <section class="section">
+        <h3>// COLOURS</h3>
+        <label class="field"><span>BACKGROUND</span><input type="color" data-k="bg"></label>
+        <label class="field"><span>TEXT</span><input type="color" data-k="text"></label>
+        <label class="field"><span>ACCENT</span><input type="color" data-k="accent"></label>
+        <label class="field"><span>MUTED</span><input type="color" data-k="muted"></label>
+        <label class="field"><span>BORDER</span><input type="color" data-k="border"></label>
+        <div class="row"><button class="btn" id="reset">&gt;&gt;RESET COLOURS</button></div>
+      </section>
+    </div>
+  </div>
+</section>
+<script>
+  const DEFAULTS = { bg: '#000000', text: '#ffffff', accent: '#118ac1', muted: '#76787e', border: '#525252' };
+  const s = Object.assign({ oddChannel: 'mono', revealFolder: true, colours: {} }, window.MEOW_SETTINGS || {});
+  const post = (msg) => window.webkit && window.webkit.messageHandlers.meow.postMessage(msg);
+  const save = () => post({ type: 'save', settings: s });
+  const root = document.documentElement;
+
+  // Odd channel choice
+  const odd = document.getElementById('odd');
+  function renderOdd() {
+    for (const b of odd.children) {
+      const on = b.dataset.v === s.oddChannel;
+      b.classList.toggle('selected', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+  }
+  odd.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    s.oddChannel = b.dataset.v;
+    renderOdd(); save();
+  });
+
+  // Reveal toggle
+  const reveal = document.getElementById('reveal');
+  function renderReveal() {
+    reveal.classList.toggle('on', s.revealFolder);
+    reveal.setAttribute('aria-checked', String(s.revealFolder));
+    reveal.querySelector('.toggle-box').textContent = s.revealFolder ? '[X]' : '[ ]';
+  }
+  reveal.addEventListener('click', () => { s.revealFolder = !s.revealFolder; renderReveal(); save(); });
+
+  // Colours
+  const inputs = [...document.querySelectorAll('input[type=color]')];
+  function renderColours() {
+    for (const i of inputs) i.value = s.colours[i.dataset.k] || DEFAULTS[i.dataset.k];
+  }
+  for (const i of inputs) {
+    i.addEventListener('input', () => {
+      s.colours[i.dataset.k] = i.value;
+      root.style.setProperty('--' + i.dataset.k, i.value);
+    });
+    i.addEventListener('change', save);
+  }
+  document.getElementById('reset').addEventListener('click', () => {
+    s.colours = {};
+    for (const k in DEFAULTS) root.style.removeProperty('--' + k);
+    renderColours(); save();
+  });
+
+  document.getElementById('open').addEventListener('click', () => post({ type: 'open' }));
+
+  const status = document.getElementById('status');
+  window.meowStatus = (text) => {
+    status.textContent = text;
+    if (text.startsWith('> DONE')) {
+      const c = document.createElement('span');
+      c.className = 'cursor'; c.textContent = '_';
+      status.append(c);
+    }
+  };
+
+  renderOdd(); renderReveal(); renderColours();
+</script>
+</body>
+</html>
